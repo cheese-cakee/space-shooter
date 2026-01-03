@@ -166,46 +166,72 @@ def load_leaderboard():
         # Try local file first
         with open('leaderboard.json', 'r') as f:
             return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        # File doesn't exist or is empty - continue to web fallback
+        pass
     except:
-        # Web: Load from GitHub Gist
-        try:
-            url = f"https://api.github.com/gists/{GIST_ID}"
-            response = requests.get(url, timeout=5)
+        # Other local error - continue to web fallback
+        pass
+        
+    # Web: Load from GitHub Gist
+    try:
+        url = f"https://api.github.com/gists/{GIST_ID}"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
             content = response.json()['files']['space-shooter-scores.json']['content']
-            return json.loads(content)
-        except:
-            # Fallback if network fails
-            return []
+            scores = json.loads(content)
+            # Also save locally for future use
+            try:
+                with open('leaderboard.json', 'w') as f:
+                    json.dump(scores, f, indent=2)
+            except:
+                pass
+            return scores
+    except:
+        # Fallback if network fails
+        pass
+    
+    # Final fallback - return empty list
+    return []
 
 def save_leaderboard(scores):
     try:
         # Try local file first
         with open('leaderboard.json', 'w') as f:
-            json.dump(scores, f)
+            json.dump(scores, f, indent=2)
     except:
-        # Web: Save to GitHub Gist
-        try:
+        # Local save failed - continue to web save
+        pass
+        
+    # Web: Save to GitHub Gist
+    try:
+        if API_TOKEN:  # Only try web save if token is available
             url = f"https://api.github.com/gists/{GIST_ID}"
             data = {
                 "files": {
                     "space-shooter-scores.json": {
-                        "content": json.dumps(scores)
+                        "content": json.dumps(scores, indent=2)
                     }
                 }
             }
-            requests.patch(url, json=data, headers={
+            response = requests.patch(url, json=data, headers={
                 "Authorization": f"token {API_TOKEN}",
                 "Accept": "application/vnd.github.v3+json"
             }, timeout=5)
-        except:
-            pass  # Silently fail if network issues
+            # Don't raise exception if web save fails - local save is good enough
+    except:
+        pass  # Silently fail if network issues - local save should be sufficient
 
 def update_leaderboard(score):
     leaderboard = load_leaderboard()
-    leaderboard.append(score)
-    leaderboard.sort(reverse=True)
-    leaderboard = leaderboard[:10]
-    save_leaderboard(leaderboard)
+    
+    # Only add score if it's valid and not already present (avoid duplicates)
+    if score > 0 and score not in leaderboard:
+        leaderboard.append(score)
+        leaderboard.sort(reverse=True)
+        leaderboard = leaderboard[:10]  # Keep top 10
+        save_leaderboard(leaderboard)
+    
     return leaderboard
 
 async def main_menu():
@@ -223,14 +249,24 @@ async def main_menu():
         
         mx, my = pygame.mouse.get_pos()
         
+# Calculate responsive button positions
+        button_width = 200
+        button_height = 50
+        button_spacing = 70
+        start_y = max(100, WINDOW_HEIGHT // 2 - 80)
+        center_x = WINDOW_WIDTH // 2 - button_width // 2
+        
+        # Ensure buttons fit within window
+        start_y = min(start_y, WINDOW_HEIGHT - (3 * button_height + 2 * button_spacing + 100))
+        
         button_start = draw_button(display_surface, 'START GAME', font, (240, 240, 240), 
-                                 (60, 60, 60), WINDOW_WIDTH // 2 - 100, WINDOW_HEIGHT // 2 - 20, 200, 50)
+                                 (60, 60, 60), center_x, start_y, button_width, button_height)
         
         button_leaderboard = draw_button(display_surface, 'LEADERBOARD', font, (240, 240, 240), 
-                                       (60, 60, 60), WINDOW_WIDTH // 2 - 100, WINDOW_HEIGHT // 2 + 50, 200, 50)
+                                       (60, 60, 60), center_x, start_y + button_spacing, button_width, button_height)
         
         button_quit = draw_button(display_surface, 'QUIT', font, (240, 240, 240), 
-                                (60, 60, 60), WINDOW_WIDTH // 2 - 100, WINDOW_HEIGHT // 2 + 120, 200, 50)
+                                (60, 60, 60), center_x, start_y + button_spacing * 2, button_width, button_height)
         
         draw_text('Arrow Keys: Move  |  Space: Shoot', small_font, (150, 150, 150), 
                  display_surface, WINDOW_WIDTH / 2, WINDOW_HEIGHT - 50, center=True)
@@ -244,7 +280,8 @@ async def main_menu():
                     game_state = 'playing'
                 elif button_leaderboard.collidepoint(mx, my):
                     await show_leaderboard()
-                elif button_quit.collidepoint(mx, my):
+elif button_quit.collidepoint(mx, my):
+                    pygame.quit()
                     return False  # Signal to quit
 
         pygame.display.update()
@@ -295,7 +332,8 @@ async def game_over_screen():
                 elif button_menu.collidepoint(mx, my):
                     over_running = False
                     game_state = 'menu'
-                elif button_quit.collidepoint(mx, my):
+elif button_quit.collidepoint(mx, my):
+                    pygame.quit()
                     return False
 
         pygame.display.update()
