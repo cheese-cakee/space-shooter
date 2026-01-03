@@ -278,9 +278,9 @@ async def main_menu():
                 if button_start.collidepoint(mx, my):
                     menu_running = False
                     game_state = 'playing'
-                elif button_leaderboard.collidepoint(mx, my):
+elif button_leaderboard.collidepoint(mx, my):
                     await show_leaderboard()
-elif button_quit.collidepoint(mx, my):
+                elif button_quit.collidepoint(mx, my):
                     pygame.quit()
                     return False  # Signal to quit
 
