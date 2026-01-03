@@ -1,0 +1,11 @@
+{
+  "name": "space-shooter-web",
+  "version": "1.0.0",
+  "description": "Space shooter game built with Pygbag",
+  "scripts": {
+    "dev": "python -m http.server 8000",
+    "build": "echo 'Build completed'"
+  },
+  "keywords": ["pygame", "game", "space-shooter"],
+  "author": "cheese-cakee"
+}
