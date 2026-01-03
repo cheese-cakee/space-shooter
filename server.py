@@ -1,41 +1,30 @@
-# server.py
+# server.py - Local leaderboard server (no external APIs)
 from flask import Flask, request, jsonify
-import requests
 import json
 import os
 
 app = Flask(__name__)
 
-GIST_ID = "dbbb7b95e20b9119cd4ece2664932aaa"
-API_TOKEN = os.environ.get('GITHUB_TOKEN')
+LEADERBOARD_FILE = 'leaderboard.json'
 
 @app.route('/api/leaderboard', methods=['GET'])
 def get_leaderboard():
     try:
-        url = f"https://api.github.com/gists/{GIST_ID}"
-        response = requests.get(url, timeout=5)
-        content = response.json()['files']['space-shooter-scores.json']['content']
-        return jsonify(json.loads(content))
+        if os.path.exists(LEADERBOARD_FILE):
+            with open(LEADERBOARD_FILE, 'r') as f:
+                data = json.load(f)
+                return jsonify(data)
+        else:
+            return jsonify({"scores": []})
     except:
         return jsonify({"scores": []})
 
 @app.route('/api/leaderboard', methods=['POST'])
 def save_leaderboard():
-    if not API_TOKEN:
-        return jsonify({"error": "No GitHub token configured"}), 500
-    
     try:
         scores = request.json
-        url = f"https://api.github.com/gists/{GIST_ID}"
-        data = {"files": {"space-shooter-scores.json": {"content": json.dumps(scores)}}}
-        
-        headers = {
-            "Authorization": f"token {API_TOKEN}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        
-        response = requests.patch(url, json=data, headers=headers, timeout=5)
-        response.raise_for_status()
+        with open(LEADERBOARD_FILE, 'w') as f:
+            json.dump(scores, f, indent=2)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

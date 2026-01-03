@@ -4,11 +4,6 @@ import asyncio
 from os.path import join
 from random import randint, uniform
 import json
-import requests
-
-# GitHub Gist configuration
-GIST_ID = "dbbb7b95e20b9119cd4ece2664932aaa" 
-API_TOKEN = os.environ.get('GITHUB_TOKEN', '')  # Set GITHUB_TOKEN in environment variables
 
 def load_leaderboard():
     try:
